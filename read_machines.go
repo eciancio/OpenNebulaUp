@@ -189,13 +189,18 @@ func (mach *Machine) GetNewOpenNebulaMachine(name string, tag_data Tags, operati
 		}
 	}
 	var team_env string
+	var MySyncedFolders []SyncedFolder
 	if mach.TeamEnv == "" {
 		team_env = "qa"
 	} else {
 		team_env = mach.TeamEnv
 	}
+	for _, folder := range mach.SyncedFolder {
+		SyncedFolder := SyncedFolder{folder["source"], folder["destination"]}
+		MySyncedFolders = append(MySyncedFolders, SyncedFolder)
+	}
 
-	return OpenNebulaMachine{name, operatingSystem, roles, "", 0, false, mach.Hostname, mach.Mem, mach.VCPU, team_env, tag_data}
+	return OpenNebulaMachine{name, operatingSystem, roles, "", 0, false, mach.Hostname, mach.Mem, mach.VCPU, MySyncedFolders, team_env, tag_data}
 }
 
 func GetOperatingSystem(machines map[string]Machine, name string) string {

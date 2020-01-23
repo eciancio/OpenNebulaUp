@@ -45,6 +45,12 @@ func (mach OpenNebulaMachine) DestroyOpenNebulaMachine(env Env) error {
 	if mach.Name == "salt-master" {
 		StopModd(env)
 	}
+	mach.Status = false
+	env.machs[mach.Name] = mach // set machine to off
+	if len(mach.SyncedFolders) > 0 {
+		RestartRsync(env) // remake rsync if machine had synced folders
+	}
+
 	fmt.Println("Destroying " + mach.Name)
 	return env.connection.DestroyVM(mach.ID)
 }

@@ -40,8 +40,29 @@ func CreateModdConf(IP string, env Env) {
 			data.WriteString(line)
 		}
 	}
+
 	confString := "    prep: rsync -a -e \"ssh\" --rsync-path=\"sudo rsync\" %s root\\@%s:/srv/\n"
 	line := fmt.Sprintf(confString, modd_path, IP)
 	data.WriteString(line)
-	data.WriteString("}")
+	data.WriteString("}\n")
+
+	synced_string := "    prep: rsync -a -e \"ssh\" --rsync-path=\"sudo mkdir -p %s && sudo rsync\" %s root\\@%s:%s/\n"
+	for _, mach := range env.machs {
+		if len(mach.SyncedFolders) > 0 && mach.Status {
+
+			for _, folder := range mach.SyncedFolders {
+				parent = folder.Source
+				if strings.HasSuffix(parent, "/") {
+					parent = parent[:len(parent)-1]
+				}
+				watch_line := parent + "/** {\n"
+				data.WriteString("\n")
+				data.WriteString(watch_line)
+				line := fmt.Sprintf(synced_string, folder.Destination, folder.Source, mach.IP, folder.Destination)
+				data.WriteString(line)
+				data.WriteString("}\n")
+			}
+		}
+	}
+
 }

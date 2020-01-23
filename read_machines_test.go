@@ -18,6 +18,8 @@ cat-master:
  hostname: mastering-cats
  vcpu: 23
  base_env: dev
+ synced_folder:
+  - {source: "/Users/.m2/repository", destination: "/tmp/.m2/repository"}
 `
 
 var csmock_yml = `
@@ -80,6 +82,9 @@ func TestReadYamlData(t *testing.T) {
 	}
 	if machines["cat-master"].Hostname != "mastering-cats" {
 		t.Error("Incorrect Hostname")
+	}
+	if machines["cat-master"].SyncedFolder[0]["destination"] != "/tmp/.m2/repository" {
+		t.Error("Incorrect Sync Destination")
 	}
 
 }
@@ -147,8 +152,9 @@ func TestGetNewOpenNebulaMachine(t *testing.T) {
 
 func TestGetOperatingSystem(t *testing.T) {
 	machs := make(map[string]Machine)
-	machs["sae-limon"] = Machine{"salt-xenial", true, true, 2048, "", 0, ""}
-	machs["sae-limon-dev"] = Machine{"sae-limon", true, true, 2048, "", 0, ""}
+	dummy := make([]map[string]string, 0)
+	machs["sae-limon"] = Machine{"salt-xenial", true, true, 2048, "", 0, "", dummy}
+	machs["sae-limon-dev"] = Machine{"sae-limon", true, true, 2048, "", 0, "", dummy}
 	os := GetOperatingSystem(machs, "sae-limon-dev")
 	if os != "salt-xenial" {
 		t.Error("Incorrect OpperatingSystem")

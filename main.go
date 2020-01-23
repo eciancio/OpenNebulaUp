@@ -10,13 +10,13 @@ import (
 )
 
 type Env struct {
-	connection      gocaConnection
-	machs           map[string]OpenNebulaMachine
-	arguements      []string
-	data            ioData
-	hostnameMapping map[string]string
-	config          *Config
-	environment     string
+	connection      gocaConnection               // Config for Connection to OpenNebula Api
+	machs           map[string]OpenNebulaMachine // Machine Name -> OpenNebulaMachine Object
+	arguements      []string                     // arguements passed to CLI
+	data            ioData                       // Object to read/write File Data
+	hostnameMapping map[string]string            // Machine Name -> Possible Hostname
+	config          *Config                      // OpenNebula Config Object
+	environment     string                       // OpenNebulaUp Environment Name
 }
 
 func main() {
@@ -41,6 +41,7 @@ func main() {
 
 	c := gocaConnection{GetOpenNebulaConfig(config)}
 	machs := GetAllMachines(&data)
+	// machs = SetMachinesStatus(&c, machs)
 	hostnameMapping := GetHostnameMapping(config)
 	env := Env{c, machs, arguements, &data, hostnameMapping, config, "base"}
 
@@ -73,6 +74,9 @@ func OpenNebulaUp(env Env, mach string, hold bool) error {
 			CreateModdConf(machine.IP, env)
 			StartModd(env)
 			machine.WaitForSync(env)
+		}
+		if len(machine.SyncedFolders) > 0 {
+			RestartRsync(env) // remake rsync if need to sync folders
 		}
 
 	}
@@ -138,7 +142,7 @@ func RestartRsync(env Env) {
 		StopModd(env)
 		CreateModdConf(master.IP, env)
 		StartModd(env)
-		fmt.Println("Rsync with master restarted")
+		fmt.Println("Rsync restarted")
 		return
 
 	}
@@ -179,6 +183,7 @@ func PrintSingleStatus(machs map[string]OpenNebulaMachine, name string) {
 
 	fmt.Printf("%-30s %-s\n", mach.Name, status)
 }
+
 func PrintCreatedStatus(machs map[string]OpenNebulaMachine) {
 	var status string
 	for _, mach := range machs {
@@ -210,22 +215,28 @@ func PrintSingleMachine(env Env, name string) {
 	for _, role := range mach.Roles {
 		fmt.Printf("   - %s\n", role)
 	}
-
+	fmt.Println("Synced Folders :")
+	for _, folder := range mach.SyncedFolders {
+		fmt.Printf(" - %s : %s\n", folder.Source, folder.Destination)
+	}
 }
 
+// Machine Defintion Object from machines.yml
 type Machine struct {
-	Inherit   string `yaml:"inherit"`
-	Enabled   bool   `yaml:"enabled"`
-	Autostart bool   `yaml:"autostart"`
-	Mem       int    `yaml:"mem"`
-	Hostname  string `yaml:"hostname"`
-	VCPU      int    `yaml:"vcpu"`
-	TeamEnv   string `yaml:"team_env"`
+	Inherit      string              `yaml:"inherit"`
+	Enabled      bool                `yaml:"enabled"`
+	Autostart    bool                `yaml:"autostart"`
+	Mem          int                 `yaml:"mem"`
+	Hostname     string              `yaml:"hostname"`
+	VCPU         int                 `yaml:"vcpu"`
+	TeamEnv      string              `yaml:"team_env"`
+	SyncedFolder []map[string]string `yaml:"synced_folder"`
 }
 type Tags struct {
 	Tags []map[string]string
 }
 
+// OpenNebulaMachine Object
 type OpenNebulaMachine struct {
 	Name            string
 	OperatingSystem string
@@ -236,10 +247,17 @@ type OpenNebulaMachine struct {
 	Hostname        string
 	Mem             int
 	VCPU            int
+	SyncedFolders   []SyncedFolder
 	TeamEnv         string
-	TagData         Tags
+	TagData         Tags // Cornerstone Tags
 }
 
 func GetMachineObjects() map[string]Machine {
 	return make(map[string]Machine)
+}
+
+// Synced Folders for VirtualMachines
+type SyncedFolder struct {
+	Source      string
+	Destination string
 }
